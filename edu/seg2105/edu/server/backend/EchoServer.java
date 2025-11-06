@@ -6,6 +6,8 @@ package edu.seg2105.edu.server.backend;
 
 import ocsf.server.*;
 
+import java.io.IOException;
+
 /**
  * This class overrides some of the methods in the abstract 
  * superclass in order to give more functionality to the server.
@@ -38,6 +40,7 @@ public class EchoServer extends AbstractServer
 
   
   //Instance methods ************************************************
+
   
   /**
    * This method handles any messages received from the client.
@@ -48,9 +51,44 @@ public class EchoServer extends AbstractServer
   public void handleMessageFromClient
     (Object msg, ConnectionToClient client)
   {
-    System.out.println("Message received: " + msg + " from " + client);
-    this.sendToAllClients(msg);
+      String message = msg.toString().trim();
+
+      // Check if the client already has a login ID
+      //Object loginObj = client.getInfo("loginID");
+      //String loginID = loginObj == null ? null : loginObj.toString();
+
+      if (client.getInfo("loginID") == null) {
+          if (message.startsWith("#login ")) {
+              String loginID = message.substring(7).trim();
+              System.out.println("Message received: " + message + "from null");
+
+              client.setInfo("loginID", loginID);
+              System.out.println(loginID + " has logged on");
+          } else {
+              try {
+                  client.sendToClient("Error! First message not including #login !");
+                  client.close();
+              } catch (IOException e) {
+              }
+          }
+          return;
+      }
+      if (message.startsWith("#login ")) {
+          //cannot try login a second time
+          try {
+              client.sendToClient("Error! You are already logged in! Closing connection.");
+              client.close();
+              } catch (IOException e){
+              }
+          return;
+      }
+
+      //regular message
+      String loginID = (String) client.getInfo("loginID");
+      System.out.println("Message received: " + message + " from " + loginID);
+      this.sendToAllClients(loginID + ": " + message);
   }
+
     
   /**
    * This method overrides the one in the superclass.  Called
@@ -71,15 +109,30 @@ public class EchoServer extends AbstractServer
     System.out.println
       ("Server has stopped listening for connections.");
   }
-  
-  
+
+  /**
+   *This method is called when new clients are connected to the server
+   */
+  @Override
+  protected void clientConnected(ConnectionToClient client) {
+      System.out.println("A new client has connected to the server");
+  }
+
+  /**
+   *This method is called when a client disconnects from the server
+   */
+  @Override
+  synchronized protected void clientDisconnected(ConnectionToClient client){
+      System.out.println("Client disconnected! client: " + client);
+  }
+
   //Class methods ***************************************************
   
   /**
    * This method is responsible for the creation of 
    * the server instance (there is no UI in this phase).
    *
-   * @param args[0] The port number to listen on.  Defaults to 5555 
+   * @param 'args[0]' The port number to listen on.  Defaults to 5555
    *          if no argument is entered.
    */
   public static void main(String[] args) 
